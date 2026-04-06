@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<!-- PWA: viewport fijo, sin zoom del usuario -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+
+<!-- ═══════════════════════════════════════════
+     PWA META TAGS — NO ELIMINAR
+═══════════════════════════════════════════ -->
+<title>SHA Carnet</title>
+<meta name="description" content="Portal del socio — SHA Carnet Tenis y Pádel"/>
+<meta name="theme-color" content="#001e62"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="SHA Carnet"/>
+<meta name="application-name" content="SHA Carnet"/>
+<meta name="msapplication-TileColor" content="#001e62"/>
+<meta name="msapplication-TileImage" content="icons/icon-144.png"/>
+
+<!-- Open Graph (para compartir por WhatsApp, etc.) -->
+<meta property="og:title" content="SHA Carnet — Portal del Socio"/>
+<meta property="og:description" content="Gestioná tus carnets y pagos desde tu celular"/>
+<meta property="og:type" content="website"/>
+<meta property="og:image" content="icons/icon-512.png"/>
+
+<!-- Manifest PWA -->
+<link rel="manifest" href="manifest.json"/>
+
+<!-- Íconos para iOS (Apple no usa el manifest) -->
+<link rel="apple-touch-icon" href="icons/icon-152.png"/>
+<link rel="apple-touch-icon" sizes="72x72"  href="icons/icon-72.png"/>
+<link rel="apple-touch-icon" sizes="96x96"  href="icons/icon-96.png"/>
+<link rel="apple-touch-icon" sizes="128x128" href="icons/icon-128.png"/>
+<link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144.png"/>
+<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png"/>
+<link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png"/>
+
+<!-- Favicon -->
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-96.png"/>
+<link rel="shortcut icon" href="icons/icon-96.png"/>
+
+<!-- iOS Splash screens (opcional pero mejora el launch) -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+
+<style>
+/* ── RESET ── */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:#001e62;
+  /* Safe area para iPhone con notch */
+  padding-top:env(safe-area-inset-top);
+  padding-bottom:env(safe-area-inset-bottom);
+  padding-left:env(safe-area-inset-left);
+  padding-right:env(safe-area-inset-right);
+}
+
+:root{
+  --blue:#001e62;--blue-l:#e8edf8;--blue-b:#b5c6e8;--blue-d:#001040;
+  --accent:#6cace4;--accent-l:#e8f4fc;--accent-b:#b5d9f4;
+  --red:#A32D2D;--red-l:#FCEBEB;--red-b:#F7C1C1;
+  --green:#3B6D11;--green-l:#EAF3DE;--green-b:#C0DD97;
+  --amber:#BA7517;--amber-l:#FAEEDA;--amber-b:#FAC775;
+  --bg:#ffffff;--bg2:#f5f5f5;--bg3:#efefef;
+  --border:rgba(0,0,0,.1);--border2:rgba(0,0,0,.18);
+  --t1:#111;--t2:#555;--t3:#999;
+  --r:8px;--rl:12px;
+  /* Safe area shortcuts */
+  --sat:env(safe-area-inset-top);
+  --sab:env(safe-area-inset-bottom);
+}
+
+/* ── APP CONTAINER — ocupa toda la pantalla ── */
+#app{
+  width:100%;
+  height:100%;
+  background:var(--bg3);
+  position:relative;
+  overflow:hidden;
+  /* En desktop: simular pantalla de celular */
+  max-width:430px;
+  margin:0 auto;
+  box-shadow:0 0 60px rgba(0,0,0,.3);
+}
+
+/* ── SCREENS ── */
+.screen{
+  position:absolute;
+  top:0;left:0;right:0;
+  /* bottom incluye safe area para el tab bar */
+  bottom:0;
+  overflow:hidden;
+  opacity:0;
+  pointer-events:none;
+  background:var(--bg3);
+  transition:opacity .28s ease,transform .28s ease;
+}
+.screen.active{opacity:1;pointer-events:all;transform:translateX(0)!important}
+.screen.push-enter{transform:translateX(100%);opacity:1}
+.screen.pop-enter{transform:translateX(-30%);opacity:.7}
+.screen.push-exit{transform:translateX(-30%);opacity:0;pointer-events:none}
+.screen.pop-exit{transform:translateX(100%);opacity:0;pointer-events:none}
+
+/* Scroll interno con padding para el tab bar y safe area */
+.ss{
+  position:absolute;
+  inset:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  /* Padding top = status bar height (aproximado) */
+  padding-top:calc(44px + env(safe-area-inset-top));
+  /* Padding bottom = tab bar + safe area home indicator */
+  padding-bottom:calc(68px + env(safe-area-inset-bottom) + 16px);
+  -webkit-overflow-scrolling:touch;
+}
+
+/* ── TAB BAR — respeta safe area de iOS ── */
+.tab-bar{
+  position:absolute;
+  bottom:0;left:0;right:0;
+  background:var(--bg);
+  border-top:.5px solid var(--border);
+  display:flex;
+  align-items:stretch;
+  /* Altura fija + safe area home indicator */
+  height:calc(64px + env(safe-area-inset-bottom));
+  padding-bottom:env(safe-area-inset-bottom);
+  z-index:100;
+}
+.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;position:relative;border:none;background:none;padding:0;overflow:hidden;min-height:44px}
+.tab-icon{font-size:22px;transition:transform .2s cubic-bezier(.34,1.56,.64,1);line-height:1;position:relative}
+.tab-label{font-size:10px;font-weight:500;color:var(--t3);transition:color .2s}
+.tab-item.act .tab-label{color:var(--blue)}
+.tab-item.act .tab-icon{transform:scale(1.12)}
+.tab-indicator{position:absolute;top:0;left:50%;transform:translateX(-50%);width:24px;height:3px;border-radius:0 0 3px 3px;background:var(--blue);opacity:0;transition:opacity .2s,width .3s cubic-bezier(.34,1.56,.64,1)}
+.tab-item.act .tab-indicator{opacity:1;width:28px}
+.tab-badge{position:absolute;top:-2px;right:-6px;min-width:16px;height:16px;border-radius:8px;background:#E24B4A;color:white;font-size:9px;font-weight:600;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid var(--bg)}
+
+/* ── STATUS BAR AREA ── */
+.ah{
+  /* Padding top = status bar */
+  padding-top:calc(16px + env(safe-area-inset-top));
+  padding-left:18px;padding-right:18px;padding-bottom:14px;
+  background:var(--bg);
+  border-bottom:.5px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;
+  flex-shrink:0;
+  position:sticky;top:0;z-index:10;
+}
+/* Para splash y login que tienen fondo azul */
+.ah-splash{
+  padding-top:calc(16px + env(safe-area-inset-top));
+  padding-bottom:14px;
+}
+.ahl{display:flex;align-items:center;gap:10px}
+.hbrand{font-size:12px;font-weight:500;color:var(--t2);letter-spacing:.07em;text-transform:uppercase}
+.hbtn{width:44px;height:44px;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:0;border-radius:8px}
+.hl{width:18px;height:1.5px;background:var(--t1);border-radius:2px}
+.back-btn{width:36px;height:36px;border-radius:50%;background:var(--bg2);border:.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:17px;color:var(--t1)}
+
+/* ── COMPONENTS ── */
+.inp{width:100%;padding:12px 14px;border:.5px solid var(--border2);border-radius:var(--r);font-size:16px;/* 16px evita zoom en iOS */color:var(--t1);background:var(--bg2);font-family:inherit;outline:none;transition:border-color .2s,box-shadow .2s;min-height:48px;-webkit-appearance:none;appearance:none}
+.inp:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,30,98,.1);background:var(--bg)}
+.ig{width:100%;margin-bottom:14px}
+.lbl{font-size:13px;color:var(--t2);margin-bottom:6px;font-weight:500}
+.btn{width:100%;padding:14px;background:var(--blue);color:white;border:none;border-radius:var(--r);font-size:16px;font-weight:500;cursor:pointer;font-family:inherit;transition:transform .1s,background .15s;position:relative;overflow:hidden;min-height:52px;-webkit-appearance:none;appearance:none}
+.btn:hover{background:var(--blue-d)}
+.btn:active{transform:scale(.98)}
+.btn.sec{background:var(--bg2);color:var(--t1);border:.5px solid var(--border2)}
+.card{background:var(--bg);border-radius:var(--rl);border:.5px solid var(--border)}
+.badge{font-size:11px;font-weight:500;padding:4px 10px;border-radius:20px}
+.badge-d{background:var(--red-l);color:var(--red)}
+.badge-ok{background:var(--green-l);color:var(--green)}
+.tog{width:36px;height:21px;border-radius:10px;background:var(--border2);position:relative;cursor:pointer;transition:background .25s;flex-shrink:0}
+.tog.on{background:var(--blue)}
+.togk{position:absolute;top:2.5px;left:2.5px;width:16px;height:16px;border-radius:50%;background:white;transition:transform .25s cubic-bezier(.34,1.56,.64,1);box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.tog.on .togk{transform:translateX(15px)}
+.chk{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--border2);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;cursor:pointer;min-width:20px;min-height:20px}
+.chk.on{background:var(--blue);border-color:var(--blue)}
+.chk svg{opacity:0;transition:opacity .15s}
+.chk.on svg{opacity:1}
+.irow{display:flex;justify-content:space-between;padding:14px 15px;border-bottom:.5px solid var(--border);font-size:14px;align-items:center}
+.irow:last-child{border-bottom:none}
+.ik{color:var(--t2)}
+.iv{font-weight:500;color:var(--t1)}
+
+/* Ripple */
+.ripple-wrap{position:relative;overflow:hidden}
+.ripple{position:absolute;border-radius:50%;background:rgba(0,30,98,.12);pointer-events:none;animation:ripple .5s ease-out forwards}
+@keyframes ripple{0%{transform:scale(0);opacity:.4}100%{transform:scale(4);opacity:0}}
+
+/* Toast */
+.toast{
+  position:absolute;
+  bottom:calc(84px + env(safe-area-inset-bottom));
+  left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.82);color:white;
+  padding:10px 20px;border-radius:20px;
+  font-size:14px;font-weight:500;white-space:nowrap;
+  opacity:0;pointer-events:none;z-index:600;
+  transition:opacity .2s;display:none;
+}
+.toast.show{opacity:1;display:block}
+
+/* Shimmer skeleton */
+.sk{border-radius:4px;background:linear-gradient(90deg,var(--bg2) 25%,var(--border) 50%,var(--bg2) 75%);background-size:800px 100%;animation:shimmer 1.4s infinite}
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+
+/* Períodos */
+.per{background:var(--bg);border:.5px solid var(--border);border-radius:var(--rl);margin:0 16px 10px;overflow:hidden;transition:border-color .2s,box-shadow .2s}
+.per.sel{border-color:var(--blue);border-width:1.5px;box-shadow:0 2px 12px rgba(0,30,98,.12)}
+.per.bloq{opacity:.6}
+.ph{padding:14px;display:flex;align-items:center;gap:10px;cursor:pointer;min-height:56px;transition:background .15s}
+.pi{flex:1}
+.pm{font-size:14px;font-weight:500;color:var(--t1);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pc{font-size:12px;color:var(--t2);margin-top:2px}
+.pt{font-size:15px;font-weight:500;color:var(--t1);transition:color .3s;flex-shrink:0}
+.per.sel .pt{color:var(--blue)}
+.pa{font-size:11px;color:var(--t3);margin-left:4px;transition:transform .25s}
+.pa.open{transform:rotate(180deg)}
+.pd{max-height:0;overflow:hidden;transition:max-height .3s ease;border-top:0 solid var(--border)}
+.pd.open{max-height:300px;border-top-width:.5px}
+.drow{display:flex;justify-content:space-between;padding:8px 14px;border-bottom:.5px solid var(--border);font-size:13px}
+.drow:last-child{border-bottom:none}
+.dn{color:var(--t2)}
+.dm{font-weight:500;color:var(--t1)}
+.venc-tag{font-size:10px;padding:2px 6px;border-radius:4px;background:var(--amber-l);color:var(--amber);font-weight:500}
+.bloq-tag{font-size:10px;padding:2px 6px;border-radius:4px;background:var(--red-l);color:var(--red);font-weight:500}
+
+/* Pay bar */
+.pb{
+  position:absolute;
+  bottom:calc(68px + env(safe-area-inset-bottom));
+  left:0;right:0;
+  background:var(--bg);
+  border-top:.5px solid var(--border);
+  padding:11px 16px;
+  display:flex;align-items:center;gap:12px;z-index:50;
+}
+.pbi{flex:1}
+.pbl{font-size:11px;color:var(--t2)}
+.pbm{font-size:18px;font-weight:500;color:var(--t1)}
+.pbd{font-size:11px;color:var(--t3)}
+.btn-pay{background:var(--blue);color:white;border:none;border-radius:var(--r);padding:13px 20px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;white-space:nowrap;transition:background .15s,transform .1s;min-height:48px;-webkit-appearance:none}
+.btn-pay:active{transform:scale(.96)}
+.btn-pay:disabled{background:var(--border2);color:var(--t3);cursor:not-allowed}
+
+/* Drawer */
+.dov{position:absolute;inset:0;background:rgba(0,0,0,0);pointer-events:none;z-index:200;transition:background .3s}
+.dov.open{background:rgba(0,0,0,.45);pointer-events:all}
+.drawer{
+  position:absolute;top:0;bottom:0;left:-285px;width:285px;
+  background:var(--bg);border-right:.5px solid var(--border);
+  transition:left .3s cubic-bezier(.4,0,.2,1);
+  z-index:201;display:flex;flex-direction:column;
+  padding-top:calc(36px + env(safe-area-inset-top));
+}
+.drawer.open{left:0}
+.dr-prof{padding:20px 20px 16px;border-bottom:.5px solid var(--border)}
+.dr-av{width:52px;height:52px;border-radius:50%;background:var(--blue-l);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:500;margin-bottom:10px}
+.dr-menu{flex:1;overflow-y:auto;padding:8px 0;padding-bottom:env(safe-area-inset-bottom)}
+.di{display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer;font-size:14px;color:var(--t1);border:none;background:none;width:100%;text-align:left;font-family:inherit;transition:background .15s;min-height:52px}
+.di:hover{background:var(--bg2)}
+.di.dact{color:var(--blue);background:var(--blue-l)}
+.di.danger{color:var(--red)}
+.di-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:var(--bg2)}
+.di.dact .di-icon{background:rgba(0,30,98,.1)}
+.di.danger .di-icon{background:var(--red-l)}
+.dr-sep{height:.5px;background:var(--border);margin:6px 0}
+
+/* Carnet badges */
+.carnet-badge{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;font-size:12px;font-weight:600;margin:3px}
+.cb-tenis{background:#e8f4fc;color:#001e62;border:.5px solid #b5d9f4}
+.cb-padel{background:#e8edf8;color:#001e62;border:.5px solid #b5c6e8}
+.cb-promo{background:linear-gradient(90deg,#e8f4fc,#e8edf8);color:#001e62;border:.5px solid #b5c6e8}
+
+/* Productos carnet */
+.prod-card{background:var(--bg);border:.5px solid var(--border);border-radius:var(--rl);margin:0 16px 10px;overflow:hidden}
+.prod-header{padding:15px;display:flex;align-items:center;gap:12px}
+.prod-icon{width:44px;height:44px;border-radius:10px;background:var(--blue-l);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.prod-plans{padding:0 15px 15px;display:flex;gap:8px}
+.plan-btn{flex:1;padding:12px 8px;border:.5px solid var(--border2);border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;background:var(--bg2);color:var(--t2);text-align:center;transition:all .15s;min-height:52px;-webkit-appearance:none}
+
+/* Historial */
+.hist-item{background:var(--bg);border:.5px solid var(--border);border-radius:var(--r);padding:13px 15px;margin:0 16px 8px;display:flex;align-items:center;gap:12px;min-height:64px}
+.hist-icon{width:40px;height:40px;border-radius:9px;background:var(--green-l);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+
+/* Animaciones */
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes popIn{0%{transform:scale(.8);opacity:0}60%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
+@keyframes slideUp{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes checkDraw{from{stroke-dashoffset:30}to{stroke-dashoffset:0}}
+
+.proc-spin{width:60px;height:60px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--blue);animation:spin 1s linear infinite;margin-bottom:24px}
+.suc-icon{width:76px;height:76px;border-radius:50%;background:var(--green-l);display:flex;align-items:center;justify-content:center;margin-bottom:20px;animation:popIn .4s .1s both}
+
+/* Home */
+.hero-card{border-radius:var(--rl);padding:20px;margin-bottom:12px;position:relative;overflow:hidden}
+.hero-card::after{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.06);pointer-events:none}
+.qa-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.qa-item{background:var(--bg);border:.5px solid var(--border);border-radius:var(--r);padding:14px 8px;text-align:center;cursor:pointer;transition:background .15s,transform .15s;min-height:76px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.qa-item:active{transform:scale(.94)}
+
+/* Banner instalación PWA */
+.install-banner{
+  position:fixed;bottom:calc(80px + env(safe-area-inset-bottom));
+  left:16px;right:16px;
+  background:var(--blue);color:white;
+  border-radius:var(--rl);padding:14px 16px;
+  display:flex;align-items:center;gap:12px;
+  box-shadow:0 4px 24px rgba(0,30,98,.4);
+  z-index:700;
+  animation:slideUp .3s ease;
+  display:none;
+}
+.install-banner.show{display:flex}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="toast" id="toast"></div>
+
+<!-- BANNER DE INSTALACIÓN PWA -->
+<div class="install-banner" id="install-banner">
+  <div style="font-size:28px;flex-shrink:0">📲</div>
+  <div style="flex:1">
+    <div style="font-size:14px;font-weight:500">Instalá SHA Carnet</div>
+    <div style="font-size:12px;opacity:.8;margin-top:2px">Agregá la app a tu pantalla de inicio</div>
+  </div>
+  <button onclick="installPWA()" style="background:white;color:var(--blue);border:none;border-radius:20px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap">Instalar</button>
+  <button onclick="dismissInstall()" style="background:none;border:none;color:rgba(255,255,255,.7);cursor:pointer;font-size:20px;padding:4px">×</button>
+</div>
+
+<!-- DRAWER -->
+<div class="dov" id="dov" onclick="closeDrawer()">
+<div class="drawer" id="drawer" onclick="event.stopPropagation()">
+  <div class="dr-prof">
+    <div class="dr-av" id="dr-av">—</div>
+    <div style="font-size:15px;font-weight:500;color:var(--t1)" id="dr-name">—</div>
+    <div style="font-size:12px;color:var(--t2);margin-top:2px" id="dr-meta">—</div>
+    <div id="dr-carnets" style="margin-top:8px;display:flex;flex-wrap:wrap"></div>
+  </div>
+  <div class="dr-menu" id="drawer-menu"></div>
+</div>
+</div>
+
+<!-- SPLASH -->
+<div class="screen active" id="s-splash" style="background:var(--blue)">
+<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:40px">
+  <div style="width:80px;height:80px;border-radius:24px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;margin-bottom:24px;font-size:36px;animation:popIn .6s cubic-bezier(.34,1.56,.64,1)">🎾</div>
+  <div style="font-size:26px;font-weight:500;color:white;margin-bottom:5px;animation:fadeUp .5s .3s both">SHA Carnet</div>
+  <div style="font-size:15px;color:rgba(255,255,255,.7);animation:fadeUp .5s .45s both">Portal del socio</div>
+  <div style="font-size:13px;color:rgba(255,255,255,.6);margin-top:40px;animation:fadeUp .4s .6s both" id="splash-status">Cargando...</div>
+  <div style="width:140px;height:3px;background:rgba(255,255,255,.2);border-radius:2px;margin-top:12px;overflow:hidden;animation:fadeUp .4s .7s both">
+    <div id="splash-bar" style="height:100%;background:white;border-radius:2px;width:0;transition:width 1.6s ease-out"></div>
+  </div>
+</div>
+</div>
+
+<!-- LOGIN -->
+<div class="screen" id="s-login" style="background:var(--bg)">
+<div class="ss"><div style="display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100%;padding:40px 24px">
+  <div style="width:100%;max-width:360px">
+    <div style="text-align:center;margin-bottom:32px">
+      <div style="width:68px;height:68px;border-radius:20px;background:var(--blue);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:30px">🎾</div>
+      <div style="font-size:24px;font-weight:500;color:var(--t1);margin-bottom:5px">SHA Carnet</div>
+      <div style="font-size:15px;color:var(--t2)">Ingresá con tus datos de socio</div>
+    </div>
+    <div class="ig">
+      <label class="lbl" for="l-socio">N° de socio</label>
+      <input class="inp" id="l-socio" type="text" placeholder="Ej: 6785" inputmode="numeric" autocomplete="username" autocorrect="off" spellcheck="false"/>
+    </div>
+    <div class="ig">
+      <label class="lbl" for="l-dni">DNI <span style="font-weight:400;color:var(--t3)">(sin puntos)</span></label>
+      <input class="inp" id="l-dni" type="text" placeholder="Ej: 28341902" inputmode="numeric" autocomplete="off" autocorrect="off" spellcheck="false"/>
+    </div>
+    <div id="login-error" style="font-size:14px;color:var(--red);background:var(--red-l);border:.5px solid var(--red-b);border-radius:var(--r);padding:11px 14px;margin-bottom:14px;display:none;line-height:1.5"></div>
+    <button class="btn ripple-wrap" id="btn-login" onclick="doLogin();addRipple(event,this)">
+      <span id="btn-login-txt">Ingresar</span>
+      <div id="btn-login-spin" style="display:none;width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:white;animation:spin .8s linear infinite;margin:0 auto"></div>
+    </button>
+    <div style="text-align:center;font-size:13px;color:var(--t3);margin-top:20px;line-height:1.6">
+      ¿Problemas para ingresar?<br>
+      <a href="mailto:cobranzas@hebraica.org.ar" style="color:var(--accent)">cobranzas@hebraica.org.ar</a>
+    </div>
+  </div>
+</div></div>
+</div>
+
+<!-- LOADING SKELETON -->
+<div class="screen" id="s-loading">
+<div class="ss">
+  <div class="ah"><div class="ahl"><div style="width:80px;height:12px;border-radius:4px" class="sk"></div></div></div>
+  <div style="padding:14px 16px 0">
+    <div class="card" style="padding:18px;margin-bottom:12px"><div style="width:140px;height:13px;border-radius:4px;margin-bottom:12px" class="sk"></div><div style="width:200px;height:28px;border-radius:4px;margin-bottom:10px" class="sk"></div><div style="width:100px;height:11px;border-radius:4px" class="sk"></div></div>
+    <div class="card" style="height:88px;margin-bottom:10px"></div>
+    <div class="card" style="height:88px;margin-bottom:10px"></div>
+    <div class="card" style="height:88px"></div>
+  </div>
+</div>
+</div>
+
+<!-- HOME -->
+<div class="screen" id="s-home">
+<div class="ss">
+  <div class="ah">
+    <div class="ahl"><button class="hbtn" onclick="openDrawer()" aria-label="Menú"><div class="hl"></div><div class="hl"></div><div class="hl"></div></button><span class="hbrand">Inicio</span></div>
+    <button onclick="navigate('s-search','push')" style="width:44px;height:44px;border-radius:50%;background:var(--bg2);border:.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px" aria-label="Buscar">🔍</button>
+  </div>
+  <div style="padding:14px 16px 0">
+    <div class="hero-card" style="background:linear-gradient(135deg,#001e62 0%,#003d82 60%,#6cace4 100%);margin-bottom:12px">
+      <div style="font-size:18px;font-weight:500;color:white;margin-bottom:3px" id="home-greeting">Hola —</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.7)" id="home-meta">—</div>
+      <div id="home-deuda-wrap" style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.18);display:none">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end">
+          <div><div style="font-size:11px;color:rgba(255,255,255,.65);margin-bottom:3px">Deuda pendiente</div><div style="font-size:26px;font-weight:500;color:white" id="home-deuda-total">—</div><div style="font-size:12px;color:rgba(255,255,255,.65);margin-top:2px" id="home-deuda-periodos">—</div></div>
+          <button onclick="tabNav('deuda')" style="background:white;color:var(--blue);border:none;border-radius:20px;padding:11px 18px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;white-space:nowrap;min-height:48px">Pagar ahora</button>
+        </div>
+      </div>
+      <div id="home-aldia-wrap" style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.18);display:none;align-items:center;gap:10px">
+        <div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:18px">✓</div>
+        <div><div style="font-size:15px;font-weight:500;color:white">¡Estás al día!</div><div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:1px">Sin deuda pendiente</div></div>
+      </div>
+    </div>
+    <div id="home-carnets-wrap" style="margin-bottom:12px;display:none">
+      <div style="font-size:11px;font-weight:500;color:var(--t2);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">Tus carnets <span id="home-periodo-label" style="text-transform:none;font-weight:400"></span></div>
+      <div id="home-carnets" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+    </div>
+    <div class="qa-grid">
+      <div class="qa-item ripple-wrap" onclick="tabNav('deuda');addRipple(event,this)" role="button"><div style="font-size:24px;margin-bottom:4px">💰</div><div style="font-size:11px;color:var(--t2)">Mi deuda</div></div>
+      <div class="qa-item ripple-wrap" onclick="tabNav('carnets');addRipple(event,this)" role="button"><div style="font-size:24px;margin-bottom:4px">🎾</div><div style="font-size:11px;color:var(--t2)">Carnets</div></div>
+      <div class="qa-item ripple-wrap" onclick="tabNav('historial');addRipple(event,this)" role="button"><div style="font-size:24px;margin-bottom:4px">📋</div><div style="font-size:11px;color:var(--t2)">Historial</div></div>
+    </div>
+    <div id="home-grupo-wrap" style="display:none">
+      <div style="font-size:11px;font-weight:500;color:var(--t2);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">Grupo familiar</div>
+      <div id="home-grupo" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- DEUDA -->
+<div class="screen" id="s-deuda">
+<div class="ss">
+  <div class="ah"><div class="ahl"><button class="hbtn" onclick="openDrawer()" aria-label="Menú"><div class="hl"></div><div class="hl"></div><div class="hl"></div></button><span class="hbrand">Mi deuda</span></div></div>
+  <div id="deuda-vacia" style="display:none"><div style="display:flex;flex-direction:column;align-items:center;padding:56px 24px;text-align:center"><div style="font-size:56px;margin-bottom:18px">🎉</div><div style="font-size:22px;font-weight:500;color:var(--t1);margin-bottom:10px">¡Estás al día!</div><div style="font-size:15px;color:var(--t2);line-height:1.6">No tenés deuda pendiente.</div></div></div>
+  <div id="deuda-contenido" style="display:none">
+    <div style="margin:14px 16px 0;padding:13px 15px;background:var(--bg);border:.5px solid var(--border);border-radius:var(--rl);display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:11px;color:var(--t2);margin-bottom:2px">Deuda total</div><div style="font-size:22px;font-weight:500;color:var(--red)" id="d-total-display">—</div></div><span class="badge badge-d" id="d-periodos-count">—</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 16px 0">
+      <div class="card" style="padding:13px"><div style="font-size:11px;color:var(--t2);margin-bottom:3px">Seleccionado</div><div style="font-size:19px;font-weight:500;color:var(--t1)" id="d-sel-display">$0</div><div style="font-size:11px;color:var(--t3)" id="d-sel-count">0 períodos</div></div>
+      <div class="card" style="padding:13px"><div style="font-size:11px;color:var(--t2);margin-bottom:3px">Pendientes</div><div style="font-size:19px;font-weight:500;color:var(--t1)" id="d-count-display">0</div><div style="font-size:11px;color:var(--t3)">períodos</div></div>
+    </div>
+    <div style="font-size:11px;font-weight:500;color:var(--t2);letter-spacing:.06em;text-transform:uppercase;padding:14px 16px 8px">Períodos pendientes</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px 10px"><span style="font-size:14px;color:var(--t2)">Seleccionar todos</span><div class="tog" id="tog-all" onclick="toggleAll()"><div class="togk"></div></div></div>
+    <div id="periodos-list"></div>
+  </div>
+</div>
+<div class="pb" id="pay-bar" style="display:none">
+  <div class="pbi"><div class="pbl">Total a pagar</div><div class="pbm" id="pay-monto">$0</div><div class="pbd" id="pay-det">Seleccioná períodos</div></div>
+  <button class="btn-pay ripple-wrap" id="btn-pagar" disabled onclick="goConfirm();addRipple(event,this)">Pagar</button>
+</div>
+</div>
+
+<!-- CARNETS -->
+<div class="screen" id="s-carnets">
+<div class="ss">
+  <div class="ah"><div class="ahl"><button class="hbtn" onclick="openDrawer()" aria-label="Menú"><div class="hl"></div><div class="hl"></div><div class="hl"></div></button><span class="hbrand">Carnets</span></div></div>
+  <div id="carnets-contenido" style="padding:14px 0 0"></div>
+</div>
+</div>
+
+<!-- HISTORIAL -->
+<div class="screen" id="s-historial">
+<div class="ss">
+  <div class="ah"><div class="ahl"><button class="hbtn" onclick="openDrawer()" aria-label="Menú"><div class="hl"></div><div class="hl"></div><div class="hl"></div></button><span class="hbrand">Historial</span></div></div>
+  <div id="historial-contenido" style="padding:14px 0 0"></div>
+</div>
+</div>
+
+<!-- CONFIRM -->
+<div class="screen" id="s-confirm">
+<div class="ss">
+  <div class="ah"><div class="ahl"><div class="back-btn" onclick="navigate('s-deuda','pop')">‹</div><span style="font-size:16px;font-weight:500;color:var(--t1)">Confirmar pago</span></div></div>
+  <div style="margin:14px 16px 0;background:var(--bg);border-radius:var(--rl);border:.5px solid var(--border);overflow:hidden"><div style="font-size:11px;font-weight:500;color:var(--t2);letter-spacing:.06em;text-transform:uppercase;padding:12px 15px 8px">Detalle del pago</div><div id="conf-filas"></div><div style="display:flex;justify-content:space-between;padding:14px 15px;border-top:.5px solid var(--border);font-size:17px;font-weight:500;color:var(--t1)"><span>Total</span><span id="conf-total">$0</span></div></div>
+  <div style="margin:10px 16px 0;background:var(--bg);border-radius:var(--rl);border:.5px solid var(--border);padding:15px">
+    <div style="font-size:11px;font-weight:500;color:var(--t2);letter-spacing:.06em;text-transform:uppercase;margin-bottom:13px">Método de pago</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:13px;border:1.5px solid var(--blue);border-radius:var(--r);background:var(--blue-l)"><div style="width:34px;height:24px;border-radius:4px;background:#00BCFF;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:white">MP</div><div style="flex:1"><div style="font-size:14px;color:var(--t1)">Mercado Pago</div><div style="font-size:12px;color:var(--t2);margin-top:1px">Acreditación inmediata</div></div><div style="width:18px;height:18px;border-radius:50%;border:2px solid var(--blue);display:flex;align-items:center;justify-content:center"><div style="width:8px;height:8px;border-radius:50%;background:var(--blue)"></div></div></div>
+  </div>
+  <div style="margin:14px 16px 28px">
+    <button class="btn ripple-wrap" id="btn-pagar-mp" onclick="iniciarPagoMP();addRipple(event,this)">
+      <span id="btn-mp-txt">Pagar con Mercado Pago</span>
+      <div id="btn-mp-spin" style="display:none;width:20px;height:20px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:white;animation:spin .8s linear infinite;margin:0 auto"></div>
+    </button>
+    <div style="text-align:center;margin-top:12px;font-size:13px;color:var(--t3)">Serás redirigido a Mercado Pago</div>
+  </div>
+</div>
+</div>
+
+<!-- PROCESANDO -->
+<div class="screen" id="s-proc" style="background:var(--bg)">
+<div class="ss" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100%;padding:40px 32px;text-align:center">
+  <div class="proc-spin"></div>
+  <div style="font-size:22px;font-weight:500;color:var(--t1);margin-bottom:10px">Procesando...</div>
+  <div style="font-size:15px;color:var(--t2)">Conectando con Mercado Pago</div>
+</div>
+</div>
+
+<!-- SUCCESS -->
+<div class="screen" id="s-suc" style="background:var(--bg)">
+<div class="ss" style="display:flex;align-items:center;justify-content:center;min-height:100%">
+<div style="display:flex;flex-direction:column;align-items:center;padding:36px 28px;text-align:center;width:100%">
+  <div class="suc-icon"><svg width="36" height="36" viewBox="0 0 36 36" fill="none"><path d="M8 18 L15 25 L28 11" stroke="#3B6D11" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="30" stroke-dashoffset="30" style="animation:checkDraw .4s .3s forwards ease-out"/></svg></div>
+  <div style="font-size:22px;font-weight:500;color:var(--t1);margin-bottom:8px;animation:slideUp .3s .2s both">¡Redirigiendo a MP!</div>
+  <div style="font-size:15px;color:var(--t2);margin-bottom:20px;animation:slideUp .3s .3s both">Si no abre automáticamente, usá el botón de abajo.</div>
+  <div style="width:100%;background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:16px;text-align:left;animation:slideUp .3s .35s both">
+    <div style="font-size:11px;color:var(--t2);margin-bottom:8px;font-weight:500;text-transform:uppercase;letter-spacing:.04em">Detalle del pago</div>
+    <div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--t2);font-size:13px"><span>Concepto</span><span style="font-weight:500;color:var(--t1)" id="suc-periodos">—</span></div>
+    <div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--t2);font-size:13px"><span>Total</span><span style="font-weight:500;color:var(--blue)" id="suc-monto">—</span></div>
+    <div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--t2);font-size:11px"><span>Referencia</span><span style="font-weight:500;color:var(--t1);font-family:monospace" id="suc-ref">—</span></div>
+  </div>
+  <a id="suc-mp-link" href="#" target="_blank" style="display:block;width:100%;padding:15px;background:var(--blue);color:white;border:none;border-radius:var(--r);font-size:16px;font-weight:500;text-align:center;text-decoration:none;margin-bottom:10px;animation:slideUp .3s .4s both;min-height:52px;display:flex;align-items:center;justify-content:center">Abrir Mercado Pago →</a>
+  <button class="btn sec ripple-wrap" onclick="goHome();addRipple(event,this)" style="animation:slideUp .3s .45s both">Volver al inicio</button>
+</div>
+</div>
+</div>
+
+<!-- SEARCH -->
+<div class="screen" id="s-search" style="background:var(--bg)">
+<div style="height:100%;display:flex;flex-direction:column;padding-top:calc(36px + env(safe-area-inset-top))">
+  <div style="padding:13px 16px;display:flex;align-items:center;gap:10px;border-bottom:.5px solid var(--border);flex-shrink:0">
+    <div style="flex:1;position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span><input style="width:100%;padding:11px 14px 11px 40px;border:.5px solid var(--border2);border-radius:var(--r);font-size:16px;color:var(--t1);background:var(--bg2);font-family:inherit;outline:none;min-height:48px;-webkit-appearance:none" id="search-inp" placeholder="Buscar período..." oninput="doSearch(this.value)"/></div>
+    <button style="font-size:15px;color:var(--blue);cursor:pointer;background:none;border:none;font-family:inherit;min-height:48px;padding:0 6px" onclick="navigate('s-home','pop')">Cancelar</button>
+  </div>
+  <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch" id="search-body"></div>
+</div>
+</div>
+
+<!-- TAB BAR -->
+<div class="tab-bar" id="tab-bar" style="display:none">
+  <button class="tab-item act ripple-wrap" id="tab-home" onclick="tabNav('home');addRipple(event,this)"><div class="tab-indicator"></div><div class="tab-icon">🏠</div><div class="tab-label">Inicio</div></button>
+  <button class="tab-item ripple-wrap" id="tab-deuda" onclick="tabNav('deuda');addRipple(event,this)"><div class="tab-indicator"></div><div class="tab-icon">💰<span class="tab-badge" id="deuda-badge" style="display:none">!</span></div><div class="tab-label">Mi deuda</div></button>
+  <button class="tab-item ripple-wrap" id="tab-carnets" onclick="tabNav('carnets');addRipple(event,this)"><div class="tab-indicator"></div><div class="tab-icon">🎾</div><div class="tab-label">Carnets</div></button>
+  <button class="tab-item ripple-wrap" id="tab-historial" onclick="tabNav('historial');addRipple(event,this)"><div class="tab-indicator"></div><div class="tab-icon">📋</div><div class="tab-label">Historial</div></button>
+</div>
+
+</div><!-- /app -->
+
+<script>
+// ================================================================
+// ⚙️  CONFIGURACIÓN — EDITÁ ESTAS DOS LÍNEAS
+// ================================================================
+var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxm42eYQYx6zFU_jXioTb1Q8A-giQ-O44kK_UKZsOdoR8bnYP4zYNRVTZ3yJSbXYTxj/exec';
+var APP = {
+  socio_id:'', dni:'', lookup:null,
+  periodosDeuda:[], productosCarnets:[],
+  sel:new Set(), exp:new Set(),
+  planSeleccionado:'1CUOTA', currentTab:'home',
+  carnetDirecto:null,
+  modoDemo:false  // ← CAMBIAR A false EN PRODUCCIÓN
+};
+
+// ================================================================
+// DATOS DE DEMO
+// ================================================================
+var DEMO_LOOKUP = {
+  ok:true,socio_id:'6785',nombre:'Juan',apellido:'García',
+  email:'juan@hebraica.org.ar',telefono:'+54 11 5555-0182',
+  edad:35,categoria:'ADULTO',periodo:'2025',
+  carnets_pagados:['TENIS'],
+  carnets_pagados_detalle:[{concepto:'TENIS',payment_id:'MP-98765',dia:'15',mes:'3',anio:'2025',monto:45000}],
+  grupo_familiar:[{socio_id:'6785',nombre:'Juan',apellido:'García',es_jefe:true},{socio_id:'6786',nombre:'María',apellido:'García',es_jefe:false}],
+  tiene_deuda:true,periodos_deuda:['2024-10','2024-11','2024-12','2025-01','2025-02','2025-03'],
+  productos:[
+    {concepto:'DEUDA_2024-10',plan_cuotas:'1CUOTA',tipo:'DEUDA',periodo_deuda:'2024-10',nombre:'Deuda Octubre 2024',monto:22700,desglose:{cuota_social:18200,deportes:4500,juventud:0,store:0,institucional:0,varios:0},orden:0,bloqueante:false,debe_pagar_antes:[]},
+    {concepto:'DEUDA_2024-11',plan_cuotas:'1CUOTA',tipo:'DEUDA',periodo_deuda:'2024-11',nombre:'Deuda Noviembre 2024',monto:18200,desglose:{cuota_social:18200,deportes:0,juventud:0,store:0,institucional:0,varios:0},orden:1,bloqueante:true,debe_pagar_antes:['2024-10']},
+    {concepto:'DEUDA_2024-12',plan_cuotas:'1CUOTA',tipo:'DEUDA',periodo_deuda:'2024-12',nombre:'Deuda Diciembre 2024',monto:20300,desglose:{cuota_social:18200,deportes:0,juventud:0,store:0,institucional:2100,varios:0},orden:2,bloqueante:true,debe_pagar_antes:['2024-10','2024-11']},
+    {concepto:'DEUDA_2025-01',plan_cuotas:'1CUOTA',tipo:'DEUDA',periodo_deuda:'2025-01',nombre:'Deuda Enero 2025',monto:22500,desglose:{cuota_social:22500,deportes:0,juventud:0,store:0,institucional:0,varios:0},orden:3,bloqueante:true,debe_pagar_antes:['2024-10','2024-11','2024-12']},
+    {concepto:'DEUDA_2025-02',plan_cuotas:'1CUOTA',tipo:'DEUDA',periodo_deuda:'2025-02',nombre:'Deuda Febrero 2025',monto:27700,desglose:{cuota_social:22500,deportes:5200,juventud:0,store:0,institucional:0,varios:0},orden:4,bloqueante:true,debe_pagar_antes:['2024-10','2024-11','2024-12','2025-01']},
+    {concepto:'DEUDA_2025-03',plan_cuotas:'1CUOTA',tipo:'DEUDA',periodo_deuda:'2025-03',nombre:'Deuda Marzo 2025',monto:22500,desglose:{cuota_social:22500,deportes:0,juventud:0,store:0,institucional:0,varios:0},orden:5,bloqueante:true,debe_pagar_antes:['2024-10','2024-11','2024-12','2025-01','2025-02']},
+    {concepto:'PADEL',plan_cuotas:'1CUOTA',tipo:'CARNET',nombre:'Carnet Pádel — 1 cuota',monto:38000,es_complemento:true},
+    {concepto:'PADEL',plan_cuotas:'6CUOTAS',tipo:'CARNET',nombre:'Carnet Pádel — 6 cuotas',monto:48000,cuota_mensual:8000,es_complemento:true}
+  ]
+};
+var DEMO_HISTORIAL={ok:true,historial:[{periodo:'2025',concepto:'TENIS',plan:'1CUOTA',categoria:'ADULTO',payment_id:'MP-98765',dia:'15',mes:'3',anio:'2025',monto:45000},{periodo:'2024',concepto:'TENIS_PADEL',plan:'6CUOTAS',categoria:'ADULTO',payment_id:'MP-87654',dia:'10',mes:'4',anio:'2024',monto:78000}]};
+
+// ================================================================
+// UTILS
+// ================================================================
+var MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function fmt(n){return'$'+Math.round(Math.abs(n)).toLocaleString('es-AR');}
+function formatPeriodo(yyyymm){var p=yyyymm.split('-');return MESES[parseInt(p[1])-1]+' '+p[0];}
+function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.style.display='block';t.classList.add('show');setTimeout(function(){t.classList.remove('show');setTimeout(function(){t.style.display='none';},250);},2400);}
+function addRipple(e,el){var r=document.createElement('div');r.className='ripple';var rect=el.getBoundingClientRect();var size=Math.max(rect.width,rect.height)*2;r.style.cssText='width:'+size+'px;height:'+size+'px;left:'+(e.clientX-rect.left-size/2)+'px;top:'+(e.clientY-rect.top-size/2)+'px';el.appendChild(r);setTimeout(function(){r.remove();},500);}
+
+// ================================================================
+// SERVICE WORKER — registro PWA
+// ================================================================
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js')
+      .then(function(reg){console.log('[PWA] SW registrado:', reg.scope);})
+      .catch(function(err){console.warn('[PWA] SW falló:', err);});
+  });
+}
+
+// ================================================================
+// INSTALL PROMPT — banner "Agregá a pantalla de inicio"
+// ================================================================
+var deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault();
+  deferredPrompt = e;
+  // Mostrar el banner después de 3 segundos de uso
+  setTimeout(function(){
+    var banner = document.getElementById('install-banner');
+    if(banner) banner.classList.add('show');
+  }, 3000);
+});
+function installPWA(){
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(function(result){
+    if(result.outcome === 'accepted') showToast('✓ App instalada correctamente');
+    deferredPrompt = null;
+    dismissInstall();
+  });
+}
+function dismissInstall(){
+  var b = document.getElementById('install-banner');
+  if(b) b.classList.remove('show');
+}
+window.addEventListener('appinstalled', function(){
+  showToast('✓ SHA Carnet instalada');
+  dismissInstall();
+});
+
+// ================================================================
+// BACKEND
+// ================================================================
+function callBackend(action, params, callback){
+  if(APP.modoDemo){
+    setTimeout(function(){
+      if(action==='lookupSocioClient') callback(null, DEMO_LOOKUP);
+      else if(action==='getHistorialClient') callback(null, DEMO_HISTORIAL);
+      else if(action==='createPreferenceClient'){
+        callback(null,{ok:true,init_point:'https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=DEMO-123456',preference_id:'DEMO-123456',external_reference:'SHA_CARNET|SOCIO='+APP.socio_id+'|PER=2025|CAT=ADULTO|PROD='+params.concepto+'|PLAN='+params.plan_cuotas});
+      }
+    },900);
+    return;
+  }
+  var body=new URLSearchParams(Object.assign({action:action},params));
+  fetch(WEB_APP_URL,{method:'POST',body:body})
+    .then(function(r){return r.json();})
+    .then(function(data){callback(null,data);})
+    .catch(function(err){callback(err);});
+}
+
+// ================================================================
+// LOGIN
+// ================================================================
+function doLogin(){
+  var socio=document.getElementById('l-socio').value.trim();
+  var dni=document.getElementById('l-dni').value.trim().replace(/\./g,'');
+  var errEl=document.getElementById('login-error');
+  errEl.style.display='none';
+  if(!socio||!dni){errEl.textContent='Completá N° de socio y DNI.';errEl.style.display='block';return;}
+  document.getElementById('btn-login-txt').style.display='none';
+  document.getElementById('btn-login-spin').style.display='block';
+  document.getElementById('btn-login').disabled=true;
+  navigate('s-loading','push');
+  callBackend('lookupSocioClient',{socio_id:socio,dni:dni},function(err,result){
+    document.getElementById('btn-login-txt').style.display='block';
+    document.getElementById('btn-login-spin').style.display='none';
+    document.getElementById('btn-login').disabled=false;
+    if(err||!result||!result.ok){
+      navigate('s-login','pop');
+      errEl.textContent=(result&&result.error)||'No se pudo verificar el socio.';
+      errEl.style.display='block';
+      return;
+    }
+    APP.socio_id=socio;APP.dni=dni;APP.lookup=result;
+    APP.periodosDeuda=(result.productos||[]).filter(function(p){return p.tipo==='DEUDA';});
+    APP.productosCarnets=(result.productos||[]).filter(function(p){return p.tipo==='CARNET'||!p.tipo;});
+    renderHome();renderDeuda();renderCarnets();
+    document.getElementById('tab-bar').style.display='flex';
+    navigate('s-home','push');
+    renderDrawer();
+  });
+}
+
+// ================================================================
+// RENDER HOME
+// ================================================================
+function renderHome(){
+  var d=APP.lookup;if(!d)return;
+  document.getElementById('home-greeting').textContent='Hola, '+d.nombre+' '+d.apellido+' 👋';
+  document.getElementById('home-meta').textContent='Socio N° '+d.socio_id+' · '+d.categoria+' · Temporada '+d.periodo;
+  if(d.tiene_deuda&&APP.periodosDeuda.length>0){
+    var total=APP.periodosDeuda.reduce(function(a,p){return a+p.monto;},0);
+    document.getElementById('home-deuda-total').textContent=fmt(total);
+    document.getElementById('home-deuda-periodos').textContent=APP.periodosDeuda.length+' período'+(APP.periodosDeuda.length!==1?'s':'')+' sin pagar';
+    document.getElementById('home-deuda-wrap').style.display='flex';
+    var db=document.getElementById('deuda-badge');db.style.display='flex';db.textContent=APP.periodosDeuda.length;
+  } else {
+    document.getElementById('home-aldia-wrap').style.display='flex';
+  }
+  var carnets=d.carnets_pagados||[];
+  if(carnets.length>0){
+    document.getElementById('home-carnets-wrap').style.display='block';
+    document.getElementById('home-periodo-label').textContent='— Temporada '+d.periodo;
+    var icons={TENIS:'🎾 Tenis',PADEL:'🏓 Pádel',TENIS_PADEL:'🎾🏓 Tenis + Pádel'};
+    document.getElementById('home-carnets').innerHTML=carnets.map(function(c){return'<span class="carnet-badge '+(c==='TENIS_PADEL'?'cb-promo':c==='TENIS'?'cb-tenis':'cb-padel')+'">✓ '+(icons[c]||c)+'</span>';}).join('');
+  }
+  var grupo=d.grupo_familiar||[];
+  if(grupo.length>1){
+    document.getElementById('home-grupo-wrap').style.display='block';
+    document.getElementById('home-grupo').innerHTML=grupo.map(function(m){return'<div style="background:var(--bg);border:.5px solid var(--border);border-radius:var(--r);padding:9px 12px;display:flex;align-items:center;gap:8px;font-size:14px"><div style="width:30px;height:30px;border-radius:50%;background:var(--blue-l);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500">'+m.nombre[0]+m.apellido[0]+'</div><div><div style="font-weight:500;color:var(--t1)">'+m.nombre+' '+m.apellido+'</div><div style="font-size:12px;color:var(--t3)">'+(m.es_jefe?'Jefe':'Socio #'+m.socio_id)+'</div></div></div>';}).join('');
+  }
+}
+
+// ================================================================
+// RENDER DEUDA
+// ================================================================
+function renderDeuda(){
+  var periodos=APP.periodosDeuda;
+  if(!periodos.length){document.getElementById('deuda-vacia').style.display='block';document.getElementById('deuda-contenido').style.display='none';document.getElementById('pay-bar').style.display='none';return;}
+  document.getElementById('deuda-vacia').style.display='none';document.getElementById('deuda-contenido').style.display='block';document.getElementById('pay-bar').style.display='flex';
+  var total=periodos.reduce(function(a,p){return a+p.monto;},0);
+  document.getElementById('d-total-display').textContent=fmt(total);
+  document.getElementById('d-periodos-count').textContent=periodos.length+' período'+(periodos.length!==1?'s':'');
+  document.getElementById('d-count-display').textContent=periodos.length;
+  updatePayBar();renderPeriodosList();
+}
+function renderPeriodosList(){
+  var hoy=new Date();
+  document.getElementById('periodos-list').innerHTML=APP.periodosDeuda.map(function(p){
+    var isSel=APP.sel.has(p.concepto),isExp=APP.exp.has(p.concepto);
+    var isBloq=p.bloqueante&&!todosAnterioresSel(p);
+    var parts=p.periodo_deuda.split('-').map(Number);
+    var vencido=new Date(parts[0],parts[1]-1,1)<new Date(hoy.getFullYear(),hoy.getMonth(),1);
+    var desglose=p.desglose||{};
+    var items=Object.entries(desglose).filter(function(e){return e[1]>0;}).map(function(e){return{n:nombreDesglose(e[0]),m:e[1]};});
+    return'<div class="per'+(isSel?' sel':'')+(isBloq?' bloq':'')+'"><div class="ph" onclick="togglePer(\''+p.concepto+'\',event)"><div class="chk'+(isSel?' on':'')+'" onclick="toggleSel(\''+p.concepto+'\',event)"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1.5 5 L4 7.5 L8.5 2" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="pi"><div class="pm">'+formatPeriodo(p.periodo_deuda)+(vencido?'<span class="venc-tag">vencido</span>':'')+(isBloq?'<span class="bloq-tag">🔒 pagar anterior</span>':'')+'</div><div class="pc">'+items.length+' concepto'+(items.length!==1?'s':'')+'</div></div><span class="pt">'+fmt(p.monto)+'</span><span class="pa'+(isExp?' open':'')+'">▾</span></div><div class="pd'+(isExp?' open':'')+'">'+items.map(function(c){return'<div class="drow"><span class="dn">'+c.n+'</span><span class="dm">'+fmt(c.m)+'</span></div>';}).join('')+'</div></div>';
+  }).join('');
+}
+function nombreDesglose(k){var n={cuota_social:'Cuota social',deportes:'Deportes',juventud:'Juventud',store:'Store',institucional:'Institucional',varios:'Varios'};return n[k]||k;}
+function todosAnterioresSel(p){if(!p.debe_pagar_antes||!p.debe_pagar_antes.length)return true;return p.debe_pagar_antes.every(function(per){return APP.sel.has('DEUDA_'+per);});}
+function toggleSel(concepto,e){
+  e.stopPropagation();
+  var p=APP.periodosDeuda.find(function(p){return p.concepto===concepto;});if(!p)return;
+  if(APP.sel.has(concepto)){APP.sel.delete(concepto);APP.periodosDeuda.forEach(function(pd){if(pd.debe_pagar_antes&&pd.debe_pagar_antes.some(function(per){return'DEUDA_'+per===concepto;}))APP.sel.delete(pd.concepto);});}
+  else{if(p.bloqueante&&!todosAnterioresSel(p)){showToast('⚠️ Primero pagá los períodos anteriores');return;}APP.sel.add(concepto);}
+  updatePayBar();renderPeriodosList();
+}
+function togglePer(concepto,e){APP.exp.has(concepto)?APP.exp.delete(concepto):APP.exp.add(concepto);renderPeriodosList();}
+function toggleAll(){var allSel=APP.sel.size===APP.periodosDeuda.length;if(allSel)APP.sel.clear();else APP.periodosDeuda.forEach(function(p){APP.sel.add(p.concepto);});updatePayBar();renderPeriodosList();}
+function updatePayBar(){
+  var sel=APP.periodosDeuda.filter(function(p){return APP.sel.has(p.concepto);});
+  var total=sel.reduce(function(a,p){return a+p.monto;},0),count=sel.length;
+  document.getElementById('pay-monto').textContent=fmt(total);
+  document.getElementById('pay-det').textContent=count===0?'Seleccioná períodos':count+' seleccionado'+(count!==1?'s':'');
+  document.getElementById('btn-pagar').disabled=count===0;
+  var ta=document.getElementById('tog-all');ta.classList.toggle('on',count===APP.periodosDeuda.length);
+  var tk=ta.querySelector('.togk');if(tk)tk.style.transform=count===APP.periodosDeuda.length?'translateX(15px)':'translateX(0)';
+}
+
+// ================================================================
+// RENDER CARNETS
+// ================================================================
+function renderCarnets(){
+  var d=APP.lookup,pagados=d.carnets_pagados||[],productos=APP.productosCarnets;
+  var icons={TENIS:'🎾',PADEL:'🏓',TENIS_PADEL:'🎾🏓'};
+  var html='';
+  if(pagados.length>0){
+    html+='<div style="font-size:11px;font-weight:500;color:var(--t2);letter-spacing:.06em;text-transform:uppercase;padding:0 16px 10px">Ya tenés — Temporada '+d.periodo+'</div>';
+    html+=(d.carnets_pagados_detalle||[]).map(function(c){return'<div style="background:var(--bg);border:.5px solid var(--green-b);border-radius:var(--rl);margin:0 16px 10px;padding:15px;display:flex;align-items:center;gap:12px"><div style="width:44px;height:44px;border-radius:10px;background:var(--green-l);display:flex;align-items:center;justify-content:center;font-size:22px">'+(icons[c.concepto]||'🎾')+'</div><div style="flex:1"><div style="font-size:15px;font-weight:500;color:var(--t1)">Carnet '+c.concepto.replace(/_/g,' + ')+'</div><div style="font-size:13px;color:var(--t2);margin-top:3px">Pagado el '+c.dia+'/'+c.mes+'/'+c.anio+' · '+fmt(c.monto)+'</div></div><div style="font-size:12px;background:var(--green-l);color:var(--green);padding:5px 10px;border-radius:20px;font-weight:500">✓ Activo</div></div>';}).join('');
+  }
+  if(productos.length>0){
+    html+='<div style="font-size:11px;font-weight:500;color:var(--t2);letter-spacing:.06em;text-transform:uppercase;padding:'+(pagados.length?'14':'0')+'px 16px 10px">Disponibles para comprar</div>';
+    var byConc={};productos.forEach(function(p){if(!byConc[p.concepto])byConc[p.concepto]=[];byConc[p.concepto].push(p);});
+    Object.entries(byConc).forEach(function(entry){
+      var conc=entry[0],prods=entry[1];
+      var p1=prods.find(function(p){return p.plan_cuotas==='1CUOTA';});
+      var p6=prods.find(function(p){return p.plan_cuotas==='6CUOTAS';});
+      var nombre=conc.replace('TENIS_PADEL','Tenis + Pádel').replace('TENIS','Tenis').replace('PADEL','Pádel');
+      html+='<div class="prod-card"><div class="prod-header"><div class="prod-icon">'+(icons[conc]||'🎾')+'</div><div><div style="font-size:15px;font-weight:500;color:var(--t1)">Carnet '+nombre+(p1&&p1.es_complemento?' <span style="font-size:11px;color:var(--t3)">(complemento)</span>':'')+'</div><div style="font-size:15px;font-weight:500;color:var(--blue);margin-top:3px">'+(p1?fmt(p1.monto):'—')+'</div></div></div><div class="prod-plans">'+(p1?'<button class="plan-btn" onclick="comprarCarnet(\''+conc+'\',\'1CUOTA\')">1 cuota<span style="font-size:12px;display:block;margin-top:3px">'+fmt(p1.monto)+'</span></button>':'')+(p6?'<button class="plan-btn" onclick="comprarCarnet(\''+conc+'\',\'6CUOTAS\')">6 cuotas s/i<span style="font-size:12px;display:block;margin-top:3px">'+fmt(p6.monto)+' · '+fmt(p6.cuota_mensual)+'/mes</span></button>':'')+'</div></div>';
+    });
+  }
+  if(!pagados.length&&!productos.length)html='<div style="text-align:center;padding:48px 24px;color:var(--t3)"><div style="font-size:40px;margin-bottom:14px">🎾</div><div style="font-size:15px">No hay carnets disponibles</div></div>';
+  document.getElementById('carnets-contenido').innerHTML=html;
+}
+function comprarCarnet(concepto,plan){
+  var prod=APP.productosCarnets.find(function(p){return p.concepto===concepto&&p.plan_cuotas===plan;});if(!prod)return;
+  APP.carnetDirecto={concepto:concepto,plan:plan,prod:prod};
+  var nombre=concepto.replace('TENIS_PADEL','Tenis + Pádel').replace('TENIS','Tenis').replace('PADEL','Pádel');
+  document.getElementById('conf-filas').innerHTML='<div style="display:flex;justify-content:space-between;padding:10px 15px;border-top:.5px solid var(--border);font-size:14px"><span style="color:var(--t2)">🎾 Carnet '+nombre+' ('+plan.replace('1CUOTA','1 cuota').replace('6CUOTAS','6 cuotas s/i')+')</span><span style="font-weight:500;color:var(--t1)">'+fmt(prod.monto)+'</span></div>';
+  document.getElementById('conf-total').textContent=fmt(prod.monto);
+  document.getElementById('plan-selector').style.display='none';
+  navigate('s-confirm','push');
+}
+
+// ================================================================
+// CONFIRM / PAGO
+// ================================================================
+function goConfirm(){
+  if(!APP.sel.size)return;
+  APP.carnetDirecto=null;
+  var sel=APP.periodosDeuda.filter(function(p){return APP.sel.has(p.concepto);});
+  var total=sel.reduce(function(a,p){return a+p.monto;},0);
+  document.getElementById('conf-filas').innerHTML=sel.map(function(p){return'<div style="display:flex;justify-content:space-between;padding:10px 15px;border-top:.5px solid var(--border);font-size:14px"><span style="color:var(--t2)">'+formatPeriodo(p.periodo_deuda)+'</span><span style="font-weight:500;color:var(--t1)">'+fmt(p.monto)+'</span></div>';}).join('');
+  document.getElementById('conf-total').textContent=fmt(total);
+  document.getElementById('plan-selector').style.display='none';
+  navigate('s-confirm','push');
+}
+function iniciarPagoMP(){
+  document.getElementById('btn-mp-txt').style.display='none';
+  document.getElementById('btn-mp-spin').style.display='block';
+  document.getElementById('btn-pagar-mp').disabled=true;
+  navigate('s-proc','push');
+  var concepto,plan,monto;
+  if(APP.carnetDirecto){concepto=APP.carnetDirecto.concepto;plan=APP.carnetDirecto.plan;monto=APP.carnetDirecto.prod.monto;}
+  else{var sel=APP.periodosDeuda.filter(function(p){return APP.sel.has(p.concepto);});concepto=sel.map(function(p){return p.concepto;}).join('|');plan='1CUOTA';monto=sel.reduce(function(a,p){return a+p.monto;},0);}
+  callBackend('createPreferenceClient',{socio_id:APP.socio_id,dni:APP.dni,concepto:concepto,plan_cuotas:plan},function(err,result){
+    document.getElementById('btn-mp-txt').style.display='block';
+    document.getElementById('btn-mp-spin').style.display='none';
+    document.getElementById('btn-pagar-mp').disabled=false;
+    if(err||!result||!result.ok){navigate('s-confirm','pop');showToast('Error: '+((result&&result.error)||'No se pudo crear el pago'));return;}
+    var selDesc=APP.carnetDirecto?('Carnet '+APP.carnetDirecto.concepto):APP.periodosDeuda.filter(function(p){return APP.sel.has(p.concepto);}).map(function(p){return formatPeriodo(p.periodo_deuda);}).join(', ');
+    document.getElementById('suc-periodos').textContent=selDesc;
+    document.getElementById('suc-monto').textContent=fmt(monto);
+    document.getElementById('suc-ref').textContent=result.external_reference||'—';
+    var link=document.getElementById('suc-mp-link');link.href=result.init_point||'#';
+    navigate('s-suc','push');
+    if(result.init_point&&!APP.modoDemo)window.location.href=result.init_point;
+  });
+}
+
+// ================================================================
+// HISTORIAL
+// ================================================================
+function loadHistorial(){
+  var cont=document.getElementById('historial-contenido');if(cont.innerHTML.trim()!=='')return;
+  cont.innerHTML='<div style="display:flex;justify-content:center;padding:36px"><div style="width:32px;height:32px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--blue);animation:spin 1s linear infinite"></div></div>';
+  callBackend('getHistorialClient',{socio_id:APP.socio_id,dni:APP.dni},function(err,result){
+    if(err||!result||!result.ok||!result.historial||!result.historial.length){cont.innerHTML='<div style="text-align:center;padding:48px;color:var(--t3)"><div style="font-size:40px;margin-bottom:14px">📋</div><div style="font-size:15px">Sin historial de pagos</div></div>';return;}
+    var icons={TENIS:'🎾',PADEL:'🏓',TENIS_PADEL:'🎾🏓'};var plans={'1CUOTA':'1 cuota','6CUOTAS':'6 cuotas s/i'};
+    cont.innerHTML=result.historial.map(function(h,i){return'<div class="hist-item" style="animation:slideUp .2s '+(i*.06)+'s both"><div class="hist-icon">'+(icons[h.concepto]||'💳')+'</div><div style="flex:1"><div style="font-size:14px;font-weight:500;color:var(--t1)">'+(icons[h.concepto]||h.concepto)+' · '+h.periodo+'</div><div style="font-size:12px;color:var(--t3);margin-top:2px">'+h.dia+'/'+h.mes+'/'+h.anio+' · '+(plans[h.plan]||h.plan)+' · '+h.categoria+'</div></div><div style="font-size:15px;font-weight:500;color:var(--green)">+'+fmt(h.monto)+'</div></div>';}).join('');
+  });
+}
+
+// ================================================================
+// SEARCH
+// ================================================================
+function doSearch(q){
+  var body=document.getElementById('search-body');if(!q.trim()){body.innerHTML='';return;}
+  var ql=q.toLowerCase();
+  var results=APP.periodosDeuda.filter(function(p){return formatPeriodo(p.periodo_deuda).toLowerCase().includes(ql)||p.periodo_deuda.includes(ql);});
+  if(!results.length){body.innerHTML='<div style="text-align:center;padding:48px 20px;color:var(--t3)"><div style="font-size:36px;margin-bottom:12px">🔍</div><div style="font-size:15px">Sin resultados</div></div>';return;}
+  body.innerHTML=results.map(function(p,i){return'<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;min-height:60px" onmouseover="this.style.background=\'var(--bg2)\'" onmouseout="this.style.background=\'\'"><div style="width:42px;height:42px;border-radius:9px;background:var(--red-l);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📅</div><div style="flex:1"><div style="font-size:15px;font-weight:500;color:var(--t1)">'+formatPeriodo(p.periodo_deuda)+'</div><div style="font-size:13px;color:var(--t2);margin-top:1px">'+p.periodo_deuda+'</div></div><div style="font-size:15px;font-weight:500;color:var(--red)">'+fmt(p.monto)+'</div></div>';}).join('');
+}
+
+// ================================================================
+// NAVEGACIÓN
+// ================================================================
+var TAB_SCREENS={home:'s-home',deuda:'s-deuda',carnets:'s-carnets',historial:'s-historial'};
+var NO_TABBAR=['s-splash','s-login','s-loading','s-proc'];
+function navigate(toId,direction){
+  direction=direction||'push';
+  var fromEl=document.querySelector('.screen.active');if(!fromEl)return;
+  var to=document.getElementById(toId);if(!to||fromEl.id===toId)return;
+  var tb=document.getElementById('tab-bar');tb.style.display=(NO_TABBAR.indexOf(toId)>-1)?'none':(APP.lookup?'flex':'none');
+  to.style.transition='none';
+  if(direction==='push'){to.style.transform='translateX(100%)';to.style.opacity='1';}
+  else if(direction==='pop'){to.style.transform='translateX(-30%)';to.style.opacity='.7';}
+  else{to.style.transform='translateY(6px)';to.style.opacity='0';}
+  to.offsetHeight;fromEl.classList.remove('active');to.classList.add('active');
+  requestAnimationFrame(function(){
+    to.style.transition='opacity 280ms ease,transform 280ms ease';to.style.transform='translateX(0)';to.style.opacity='1';
+    fromEl.style.transition='opacity 280ms ease,transform 280ms ease';
+    if(direction==='push'){fromEl.style.transform='translateX(-30%)';fromEl.style.opacity='0';}
+    else if(direction==='pop'){fromEl.style.transform='translateX(100%)';fromEl.style.opacity='0';}
+    else fromEl.style.opacity='0';
+  });
+  setTimeout(function(){fromEl.style.cssText='';fromEl.classList.remove('active');to.style.cssText='';},320);
+}
+function tabNav(dest){
+  closeDrawer();var screenId=TAB_SCREENS[dest];if(!screenId)return;
+  var cur=document.querySelector('.screen.active');if(cur&&cur.id===screenId)return;
+  Object.keys(TAB_SCREENS).forEach(function(t){var ti=document.getElementById('tab-'+t);if(ti)ti.classList.toggle('act',t===dest);});
+  APP.currentTab=dest;renderDrawer();
+  if(dest==='historial')loadHistorial();
+  navigate(screenId,'tab');
+}
+function goHome(){APP.sel.clear();updatePayBar();tabNav('home');}
+
+// ================================================================
+// DRAWER
+// ================================================================
+function renderDrawer(){
+  if(!APP.lookup)return;
+  var d=APP.lookup;
+  document.getElementById('dr-av').textContent=d.nombre[0]+d.apellido[0];
+  document.getElementById('dr-name').textContent=d.nombre+' '+d.apellido;
+  document.getElementById('dr-meta').textContent='Socio N° '+d.socio_id+' · '+d.categoria;
+  var icons={TENIS:'🎾',PADEL:'🏓',TENIS_PADEL:'🎾🏓'};
+  document.getElementById('dr-carnets').innerHTML=(d.carnets_pagados||[]).map(function(c){return'<span class="carnet-badge '+(c==='TENIS_PADEL'?'cb-promo':c==='TENIS'?'cb-tenis':'cb-padel')+'" style="font-size:11px">'+(icons[c]||'')+' '+c.replace('_PADEL',' + Pádel').replace('TENIS','Tenis').replace('PADEL','Pádel')+'</span>';}).join('');
+  var items=[{id:'home',icon:'🏠',label:'Inicio'},{id:'deuda',icon:'💰',label:'Mi deuda'+(APP.periodosDeuda.length>0?' ('+APP.periodosDeuda.length+')':'')},{id:'carnets',icon:'🎾',label:'Carnets'},{id:'historial',icon:'📋',label:'Historial de pagos'},{id:'sep'},{id:'logout',icon:'🚪',label:'Cerrar sesión',danger:true}];
+  document.getElementById('drawer-menu').innerHTML=items.map(function(item){
+    if(item.id==='sep')return'<div class="dr-sep"></div>';
+    if(item.danger)return'<button class="di danger" onclick="logout()"><div class="di-icon" style="background:var(--red-l)">'+item.icon+'</div>'+item.label+'</button>';
+    var isAct=APP.currentTab===item.id;
+    return'<button class="di'+(isAct?' dact':'')+'" onclick="closeDrawer();setTimeout(function(){tabNav(\''+item.id+'\');},200)"><div class="di-icon">'+item.icon+'</div>'+item.label+'</button>';
+  }).join('');
+}
+function openDrawer(){renderDrawer();document.getElementById('dov').classList.add('open');document.getElementById('drawer').classList.add('open');}
+function closeDrawer(){document.getElementById('dov').classList.remove('open');document.getElementById('drawer').classList.remove('open');}
+function logout(){APP.socio_id='';APP.dni='';APP.lookup=null;APP.periodosDeuda=[];APP.productosCarnets=[];APP.sel.clear();document.getElementById('tab-bar').style.display='none';document.getElementById('l-socio').value='';document.getElementById('l-dni').value='';closeDrawer();navigate('s-login','push');}
+
+// ================================================================
+// SPLASH
+// ================================================================
+setTimeout(function(){
+  document.getElementById('splash-bar').style.width='100%';
+  document.getElementById('splash-status').textContent='SHA Carnet — Portal del socio';
+  setTimeout(function(){navigate('s-login','push');},700);
+},1800);
+</script>
+</body>
+</html>

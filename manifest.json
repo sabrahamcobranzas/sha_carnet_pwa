@@ -2,13 +2,13 @@
   "name": "SHA Carnet — Portal del Socio",
   "short_name": "SHA Carnet",
   "description": "Portal del socio para gestionar carnets y pagos de la Sociedad Hebraica Argentina",
-  "start_url": "/",
+  "start_url": "/sha_carnet_pwa/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#001e62",
   "theme_color": "#001e62",
   "lang": "es-AR",
-  "scope": "/",
+  "scope": "/sha_carnet_pwa/",
   "icons": [
     {
       "src": "icons/icon-72.png",

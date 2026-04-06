@@ -385,7 +385,7 @@ body{
     </button>
     <div style="text-align:center;font-size:13px;color:var(--t3);margin-top:20px;line-height:1.6">
       ¿Problemas para ingresar?<br>
-      <span style="color:var(--accent)">cobranzas [at] hebraica.org.ar</span>
+      <a href="mailto:cobranzas@hebraica.org.ar" style="color:var(--accent)">cobranzas@hebraica.org.ar</a>
     </div>
   </div>
 </div></div>
@@ -799,6 +799,7 @@ function comprarCarnet(concepto,plan){
   var nombre=concepto.replace('TENIS_PADEL','Tenis + Pádel').replace('TENIS','Tenis').replace('PADEL','Pádel');
   document.getElementById('conf-filas').innerHTML='<div style="display:flex;justify-content:space-between;padding:10px 15px;border-top:.5px solid var(--border);font-size:14px"><span style="color:var(--t2)">🎾 Carnet '+nombre+' ('+plan.replace('1CUOTA','1 cuota').replace('6CUOTAS','6 cuotas s/i')+')</span><span style="font-weight:500;color:var(--t1)">'+fmt(prod.monto)+'</span></div>';
   document.getElementById('conf-total').textContent=fmt(prod.monto);
+  var ps=document.getElementById('plan-selector');if(ps)ps.style.display='none';
   navigate('s-confirm','push');
 }
 
@@ -812,6 +813,7 @@ function goConfirm(){
   var total=sel.reduce(function(a,p){return a+p.monto;},0);
   document.getElementById('conf-filas').innerHTML=sel.map(function(p){return'<div style="display:flex;justify-content:space-between;padding:10px 15px;border-top:.5px solid var(--border);font-size:14px"><span style="color:var(--t2)">'+formatPeriodo(p.periodo_deuda)+'</span><span style="font-weight:500;color:var(--t1)">'+fmt(p.monto)+'</span></div>';}).join('');
   document.getElementById('conf-total').textContent=fmt(total);
+  var ps=document.getElementById('plan-selector');if(ps)ps.style.display='none';
   navigate('s-confirm','push');
 }
 function iniciarPagoMP(){
@@ -921,4 +923,11 @@ function logout(){APP.socio_id='';APP.dni='';APP.lookup=null;APP.periodosDeuda=[
 // ================================================================
 // SPLASH
 // ================================================================
-setTimeout(f
+setTimeout(function(){
+  document.getElementById('splash-bar').style.width='100%';
+  document.getElementById('splash-status').textContent='SHA Carnet — Portal del socio';
+  setTimeout(function(){navigate('s-login','push');},700);
+},1800);
+</script>
+</body>
+</html>

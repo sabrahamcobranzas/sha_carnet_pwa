@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sha-carnet-v2';
+const CACHE_NAME = 'sha-carnet-v3';
 const BASE_PATH = '/sha_carnet_pwa';
 const SHELL_FILES = [
   BASE_PATH + '/',
@@ -14,7 +14,7 @@ self.addEventListener('install', function(event) {
       return Promise.allSettled(
         SHELL_FILES.map(function(url) {
           return cache.add(url).catch(function(e) {
-            console.warn('[SW] No se pudo cachear:', url, e);
+            console.warn('[SW] No se pudo cachear:', url);
           });
         })
       );
@@ -40,7 +40,11 @@ self.addEventListener('activate', function(event) {
 self.addEventListener('fetch', function(event) {
   var url = new URL(event.request.url);
 
-  // Apps Script y MP siempre desde la red
+  // Ignorar extensiones de Chrome y esquemas no-http
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return;
+  if (url.hostname === 'chrome-extension') return;
+
+  // Apps Script y MP — siempre red
   if (url.hostname.includes('script.google.com') ||
       url.hostname.includes('mercadopago.com') ||
       url.hostname.includes('mercadolibre.com')) {
@@ -60,12 +64,19 @@ self.addEventListener('fetch', function(event) {
     caches.match(event.request).then(function(cached) {
       if (cached) return cached;
       return fetch(event.request).then(function(response) {
+        // Solo cachear respuestas válidas de nuestro propio origen
         if (!response || response.status !== 200 || response.type === 'opaque') {
+          return response;
+        }
+        // No cachear requests de extensiones
+        if (event.request.url.startsWith('chrome-extension://')) {
           return response;
         }
         var clone = response.clone();
         caches.open(CACHE_NAME).then(function(cache) {
-          cache.put(event.request, clone);
+          cache.put(event.request, clone).catch(function() {
+            // Silenciar errores de cache para esquemas no soportados
+          });
         });
         return response;
       }).catch(function() {

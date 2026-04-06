@@ -797,10 +797,8 @@ function comprarCarnet(concepto,plan){
   var prod=APP.productosCarnets.find(function(p){return p.concepto===concepto&&p.plan_cuotas===plan;});if(!prod)return;
   APP.carnetDirecto={concepto:concepto,plan:plan,prod:prod};
   var nombre=concepto.replace('TENIS_PADEL','Tenis + Pádel').replace('TENIS','Tenis').replace('PADEL','Pádel');
-  var _cf=document.getElementById('conf-filas');
-  var _ct=document.getElementById('conf-total');
-  if(_cf)_cf.innerHTML='<div style="display:flex;justify-content:space-between;padding:10px 15px;border-top:.5px solid var(--border);font-size:14px"><span style="color:var(--t2)">🎾 Carnet '+nombre+' ('+plan.replace('1CUOTA','1 cuota').replace('6CUOTAS','6 cuotas s/i')+')</span><span style="font-weight:500;color:var(--t1)">'+fmt(prod.monto)+'</span></div>';
-  if(_ct)_ct.textContent=fmt(prod.monto);
+  document.getElementById('conf-filas').innerHTML='<div style="display:flex;justify-content:space-between;padding:10px 15px;border-top:.5px solid var(--border);font-size:14px"><span style="color:var(--t2)">🎾 Carnet '+nombre+' ('+plan.replace('1CUOTA','1 cuota').replace('6CUOTAS','6 cuotas s/i')+')</span><span style="font-weight:500;color:var(--t1)">'+fmt(prod.monto)+'</span></div>';
+  document.getElementById('conf-total').textContent=fmt(prod.monto);
   navigate('s-confirm','push');
 }
 
@@ -812,10 +810,8 @@ function goConfirm(){
   APP.carnetDirecto=null;
   var sel=APP.periodosDeuda.filter(function(p){return APP.sel.has(p.concepto);});
   var total=sel.reduce(function(a,p){return a+p.monto;},0);
-  var _cf2=document.getElementById('conf-filas');
-  var _ct2=document.getElementById('conf-total');
-  if(_cf2)_cf2.innerHTML=sel.map(function(p){return'<div style="display:flex;justify-content:space-between;padding:10px 15px;border-top:.5px solid var(--border);font-size:14px"><span style="color:var(--t2)">'+formatPeriodo(p.periodo_deuda)+'</span><span style="font-weight:500;color:var(--t1)">'+fmt(p.monto)+'</span></div>';}).join('');
-  if(_ct2)_ct2.textContent=fmt(total);
+  document.getElementById('conf-filas').innerHTML=sel.map(function(p){return'<div style="display:flex;justify-content:space-between;padding:10px 15px;border-top:.5px solid var(--border);font-size:14px"><span style="color:var(--t2)">'+formatPeriodo(p.periodo_deuda)+'</span><span style="font-weight:500;color:var(--t1)">'+fmt(p.monto)+'</span></div>';}).join('');
+  document.getElementById('conf-total').textContent=fmt(total);
   navigate('s-confirm','push');
 }
 function iniciarPagoMP(){
